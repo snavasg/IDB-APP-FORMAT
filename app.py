@@ -91,9 +91,8 @@ if "resultados" in st.session_state:
 
     st.divider()
 
-    # Reiniciar
+    # Reiniciar resultados (no cierra sesión)
     if st.button("🔄 Reiniciar proceso"):
-        st.session_state.pop("resultados", None)
-        st.experimental_rerun()
-# ╚═════════════════════════════════════════════════════════════╝
+        st.session_state.pop("resultados", None)  # elimina solo los outputs
+        st.rerun()  
 
