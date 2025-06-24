@@ -1,50 +1,57 @@
+# app.py ─ Generador de Plantillas BID
+# -----------------------------------
+# • Login con usuario/contraseña guardados en st.secrets
+# • Procesamiento de múltiples archivos .xlsx
+# • Descarga individual o ZIP
+# • Reinicio de proceso
+# • Botón “Cerrar sesión” sin romper la app
+
 import streamlit as st
 import hashlib, time, io, zipfile
-from pipeline import run_pipeline   # ← tu función existente
+from pipeline import run_pipeline  # ← tu función existente
 
-# ╔══════════════════════════ 1. LOGIN ═════════════════════════╗
+# ╔═══════════════ 0. CONFIG GLOBAL ═══════════════╗
+st.set_page_config(page_title="Generador de Plantillas BID", page_icon="📑")
+
+# ╔═══════════════ 1. LOGIN SIMPLE ════════════════╗
 def login() -> bool:
-    """Autenticación mínima con hashes SHA-256 guardados en st.secrets"""
+    """Devuelve True cuando el usuario está autenticado."""
     if st.session_state.get("auth_ok"):
         return True
 
-    st.set_page_config(page_title="Generador de Plantillas BID", page_icon="📑")
     st.title("🔒 Inicio de sesión")
-
     user = st.text_input("Usuario")
     pwd  = st.text_input("Contraseña", type="password")
     if st.button("Entrar"):
         creds = st.secrets["credentials"]
         if user in creds and hashlib.sha256(pwd.encode()).hexdigest() == creds[user]:
             st.session_state["auth_ok"] = True
-            return True
-        st.error("Credenciales incorrectas")
-        time.sleep(1)
+            st.experimental_rerun()  # refresca para mostrar la app
+        else:
+            st.error("Credenciales incorrectas")
+            time.sleep(1)
     st.stop()
 
 # Ejecutar control de acceso
-if not login():
-    st.stop()
-# ╚═════════════════════════════════════════════════════════════╝
+login()
+# ╚════════════════════════════════════════════════╝
 
 
-# ╔══════════════════════ 2. CONFIG & HEADER ═══════════════════╗
-st.set_page_config(page_title="Generador de Plantillas BID", page_icon="📑")
+# ╔═══════════════ 2. HEADER & AYUDA ══════════════╗
 st.title("📑 Generador de Plantillas BID")
-
 with st.expander("ℹ️ Cómo usar esta herramienta", expanded=True):
     st.markdown(
         """
         1. **Sube** uno o varios archivos **.xlsx** que contengan las hojas  
-           *SDO & Result Indicators* y *Solutions & Outputs*.
-        2. Pulsa **Procesar** y espera unos segundos por cada archivo.  
-        3. Aparecerán botones para **descargar** cada resultado o todo en un **ZIP**.
+           *SDO & Result Indicators* y *Solutions & Outputs*.  
+        2. Pulsa **Procesar** y espera unos segundos.  
+        3. Descarga cada resultado o todos juntos en un **ZIP**.  
         """
     )
-# ╚═════════════════════════════════════════════════════════════╝
+# ╚════════════════════════════════════════════════╝
 
 
-# ╔══════════════════════ 3. UPLOAD & PROCESO ══════════════════╗
+# ╔═══════════════ 3. SUBIDA Y PROCESO ════════════╗
 uploaded_files = st.file_uploader(
     "📂 Arrastra aquí tus archivos .xlsx",
     type=["xlsx"], accept_multiple_files=True, key="uploader"
@@ -54,32 +61,32 @@ if st.button("🚀 Procesar") and uploaded_files:
     resultados = []
     for f in uploaded_files:
         with st.spinner(f"Procesando **{f.name}** …"):
-            nombre, contenido = run_pipeline(f.read())
-            nombre_final = f"{f.name.rsplit('.',1)[0]}_{nombre}"
-            resultados.append((nombre_final, contenido))
+            out_name, out_bytes = run_pipeline(f.read())
+            final_name = f"{f.name.rsplit('.',1)[0]}_{out_name}"
+            resultados.append((final_name, out_bytes))
     st.session_state["resultados"] = resultados
-# ╚═════════════════════════════════════════════════════════════╝
+# ╚════════════════════════════════════════════════╝
 
 
-# ╔══════════════════════ 4. DESCARGAS UI ══════════════════════╗
+# ╔═══════════════ 4. DESCARGAS ═══════════════════╗
 if "resultados" in st.session_state:
     st.subheader("⬇️ Descargas")
 
-    # Botón ZIP si hay más de un archivo
+    # ZIP si hay >1 archivo
     if len(st.session_state["resultados"]) > 1:
-        buffer = io.BytesIO()
-        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
             for fname, fbytes in st.session_state["resultados"]:
                 zf.writestr(fname, fbytes)
-        buffer.seek(0)
+        zip_buffer.seek(0)
         st.download_button(
             "📦 Descargar TODO (.zip)",
-            data=buffer,
+            data=zip_buffer,
             file_name="bid_templates.zip",
             mime="application/zip"
         )
 
-    # Botones individuales
+    # Individuales
     for fname, fbytes in st.session_state["resultados"]:
         st.download_button(
             f"💾 {fname}",
@@ -91,17 +98,20 @@ if "resultados" in st.session_state:
 
     st.divider()
 
-    # Reiniciar
+    # Reiniciar resultados (no cierra sesión)
     if st.button("🔄 Reiniciar proceso"):
         st.session_state.pop("resultados", None)
         st.experimental_rerun()
-# ╚═════════════════════════════════════════════════════════════╝
+# ╚════════════════════════════════════════════════╝
 
 
-# ╔══════════════════════ 5. SIDEBAR (Log-out) ═════════════════╗
+# ╔═══════════════ 5. SIDEBAR (LOGOUT) ════════════╗
 with st.sidebar:
     st.header("Opciones")
     if st.button("🔓 Cerrar sesión"):
-        st.session_state.clear()
+        # Desloguear y limpiar artefactos relevantes
+        st.session_state["auth_ok"] = False
+        st.session_state.pop("resultados", None)
+        st.session_state.pop("uploader",  None)
         st.experimental_rerun()
-# ╚═════════════════════════════════════════════════════════════╝
+# ╚════════════════════════════════════════════════╝
