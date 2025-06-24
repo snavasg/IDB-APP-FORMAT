@@ -1,0 +1,2 @@
+# IDB-APP-FORMAT
+What it does A Streamlit web app that reads an IDB project’s Excel workbook (sheets “SDO & Result Indicators” and “Solutions & Outputs”) and automatically builds the four official work templates required by the Inter-American Development Bank:  C. Development Challenge  D. Theory of Change  E. Result Measurement  F. Summary & Next Steps  The output is a single, fully-formatted .xlsx file ready for review and submission.
