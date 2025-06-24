@@ -2,6 +2,31 @@
 import streamlit as st
 from pipeline import run_pipeline
 
+import streamlit as st
+import hashlib, time
+
+# ---------- Login ----------
+def login():
+    if st.session_state.get("auth_ok"):
+        return True
+
+    st.title("🔒 Inicia sesión")
+    u = st.text_input("Usuario")
+    p = st.text_input("Contraseña", type="password")
+    if st.button("Entrar"):
+        creds = st.secrets["credentials"]
+        if u in creds and hashlib.sha256(p.encode()).hexdigest() == creds[u]:
+            st.session_state["auth_ok"] = True
+            return True
+        st.error("Credenciales incorrectas")
+        time.sleep(1)
+    st.stop()
+
+# Llama al login antes de mostrar la app
+login()
+# ---------- Fin Login ----------
+
+
 st.set_page_config(page_title="Generador de Plantillas BID", page_icon="📑")
 st.title("📑 Generador de Plantillas BID")
 
