@@ -98,20 +98,3 @@ if "resultados" in st.session_state:
 
     st.divider()
 
-    # Reiniciar resultados (no cierra sesión)
-    if st.button("🔄 Reiniciar proceso"):
-        st.session_state.pop("resultados", None)
-        st.experimental_rerun()
-# ╚════════════════════════════════════════════════╝
-
-
-# ╔═══════════════ 5. SIDEBAR (LOGOUT) ════════════╗
-with st.sidebar:
-    st.header("Opciones")
-    if st.button("🔓 Cerrar sesión"):
-        # Desloguear y limpiar artefactos relevantes
-        st.session_state["auth_ok"] = False
-        st.session_state.pop("resultados", None)
-        st.session_state.pop("uploader",  None)
-        st.experimental_rerun()
-# ╚════════════════════════════════════════════════╝
